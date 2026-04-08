@@ -1,0 +1,2 @@
+# sudoku
+juego sudoku minimalista

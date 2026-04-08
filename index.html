@@ -38,7 +38,6 @@
 
         .hidden { display: none; }
 
-        /* Animación suave para mensajes */
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
@@ -52,7 +51,7 @@
 
     <!-- Pantalla de Inicio -->
     <div id="home-screen" class="flex flex-col items-center justify-center flex-grow w-full max-w-md">
-        <h1 class="text-4xl font-bold mb-12 text-gray-800 tracking-tight">Sudoku</h1>
+        <h1 class="text-4xl font-bold mb-12 text-gray-800 tracking-tight text-center">Sudoku</h1>
         
         <div class="flex flex-col gap-4 w-full px-8">
             <button onclick="startGame(48)" class="bg-white border-2 border-gray-300 py-4 rounded-2xl text-xl font-medium hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm">
@@ -84,12 +83,12 @@
 
         <div id="grid" class="grid grid-cols-9 w-full bg-white shadow-2xl border-2 border-black"></div>
 
-        <!-- Mensaje de error (oculto por defecto) -->
         <div id="error-message" class="hidden mt-4 text-red-500 font-bold bg-red-50 px-4 py-2 rounded-lg border border-red-200">
             Revisar tablero
         </div>
 
         <div id="numpad" class="mt-8 grid grid-cols-5 gap-2 w-full">
+            <!-- Botones numéricos -->
             <button onclick="inputValue(1)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">1</button>
             <button onclick="inputValue(2)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">2</button>
             <button onclick="inputValue(3)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">3</button>
@@ -134,27 +133,47 @@
         let selectedCell = null;
         let currentBoard = [];
 
+        // --- GENERADOR DE SUDOKU ROBUSTO ---
+
         function generateSudokuData(hintsCount) {
-            let board = [
-                [1,2,3,4,5,6,7,8,9],
-                [4,5,6,7,8,9,1,2,3],
-                [7,8,9,1,2,3,4,5,6],
-                [2,3,1,5,6,4,8,9,7],
-                [5,6,4,8,9,7,2,3,1],
-                [8,9,7,2,3,1,5,6,4],
-                [3,1,2,6,4,5,9,7,8],
-                [6,4,5,9,7,8,3,1,2],
-                [9,7,8,3,1,2,6,4,5]
-            ];
+            let board = Array.from({ length: 9 }, () => Array(9).fill(0));
+            
+            // Función para verificar si un número es válido en una posición
+            const isSafe = (board, row, col, num) => {
+                for (let x = 0; x < 9; x++) if (board[row][x] === num) return false;
+                for (let x = 0; x < 9; x++) if (board[x][col] === num) return false;
+                let startRow = row - row % 3, startCol = col - col % 3;
+                for (let i = 0; i < 3; i++)
+                    for (let j = 0; j < 3; j++)
+                        if (board[i + startRow][j + startCol] === num) return false;
+                return true;
+            };
 
-            // Mezclar tablero
-            for(let i=0; i<20; i++) {
-                const block = Math.floor(Math.random() * 3) * 3;
-                const r1 = block + Math.floor(Math.random() * 3);
-                const r2 = block + Math.floor(Math.random() * 3);
-                [board[r1], board[r2]] = [board[r2], board[r1]];
-            }
+            // Algoritmo de Backtracking para llenar el tablero
+            const fillBoard = (board) => {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        if (board[row][col] === 0) {
+                            // Aleatorizar el orden de los números del 1 al 9
+                            let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
+                            for (let num of nums) {
+                                if (isSafe(board, row, col, num)) {
+                                    board[row][col] = num;
+                                    if (fillBoard(board)) return true;
+                                    board[row][col] = 0;
+                                }
+                            }
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            };
 
+            // Rellenamos el tablero completo
+            fillBoard(board);
+
+            // Quitamos números para crear el puzzle según la dificultad
             let puzzle = board.map(row => [...row]);
             let removed = 0;
             let targetToRemove = 81 - hintsCount;
@@ -237,14 +256,11 @@
             }
         }
 
-        // --- LÓGICA DE VALIDACIÓN ---
-
         function validateBoard() {
             const cells = Array.from(gridElement.children);
             let boardValues = Array.from({ length: 9 }, () => Array(9).fill(0));
             let isComplete = true;
 
-            // Recopilar valores y verificar si está completo
             cells.forEach(cell => {
                 const r = parseInt(cell.dataset.row);
                 const c = parseInt(cell.dataset.col);
@@ -258,32 +274,22 @@
                 return;
             }
 
-            // Mostrar victoria
             gameScreen.classList.add('hidden');
             victoryScreen.classList.remove('hidden');
         }
 
         function isValidSudoku(board) {
-            // Verificar filas, columnas y bloques 3x3
             for (let i = 0; i < 9; i++) {
-                let rowSet = new Set();
-                let colSet = new Set();
-                let boxSet = new Set();
-
+                let rowSet = new Set(), colSet = new Set(), boxSet = new Set();
                 for (let j = 0; j < 9; j++) {
-                    // Fila
                     if (board[i][j] !== 0) {
                         if (rowSet.has(board[i][j])) return false;
                         rowSet.add(board[i][j]);
                     }
-
-                    // Columna
                     if (board[j][i] !== 0) {
                         if (colSet.has(board[j][i])) return false;
                         colSet.add(board[j][i]);
                     }
-
-                    // Caja 3x3
                     let r = 3 * Math.floor(i / 3) + Math.floor(j / 3);
                     let c = 3 * (i % 3) + (j % 3);
                     if (board[r][c] !== 0) {

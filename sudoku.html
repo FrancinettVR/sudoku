@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Minimalista</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .cell {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+
+        .border-r-bold { border-right: 3px solid #000; }
+        .border-b-bold { border-bottom: 3px solid #000; }
+
+        .cell.selected {
+            background-color: #bfdbfe !important;
+        }
+
+        .cell.initial {
+            font-weight: bold;
+            color: #000;
+            background-color: #f3f4f6;
+            cursor: default;
+        }
+
+        .cell.user-input {
+            color: #2563eb;
+        }
+
+        .hidden { display: none; }
+
+        /* Animación suave para mensajes */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center p-4 font-sans">
+
+    <!-- Pantalla de Inicio -->
+    <div id="home-screen" class="flex flex-col items-center justify-center flex-grow w-full max-w-md">
+        <h1 class="text-4xl font-bold mb-12 text-gray-800 tracking-tight">Sudoku</h1>
+        
+        <div class="flex flex-col gap-4 w-full px-8">
+            <button onclick="startGame(48)" class="bg-white border-2 border-gray-300 py-4 rounded-2xl text-xl font-medium hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm">
+                Fácil
+            </button>
+            <button onclick="startGame(30)" class="bg-white border-2 border-gray-300 py-4 rounded-2xl text-xl font-medium hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm">
+                Medio
+            </button>
+            <button onclick="startGame(20)" class="bg-white border-2 border-gray-300 py-4 rounded-2xl text-xl font-medium hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm">
+                Difícil
+            </button>
+        </div>
+    </div>
+
+    <!-- Pantalla de Juego -->
+    <div id="game-screen" class="hidden flex flex-col items-center w-full max-w-md">
+        <div class="flex justify-between w-full mb-6 items-center px-2">
+            <button onclick="showHome()" class="text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                Inicio
+            </button>
+            <h2 id="difficulty-label" class="font-bold text-gray-400 uppercase tracking-widest text-xs">Juego</h2>
+            <button onclick="validateBoard()" class="bg-black text-white px-4 py-1 rounded-full text-sm font-bold hover:bg-gray-800 transition-colors">
+                Listo
+            </button>
+        </div>
+
+        <div id="grid" class="grid grid-cols-9 w-full bg-white shadow-2xl border-2 border-black"></div>
+
+        <!-- Mensaje de error (oculto por defecto) -->
+        <div id="error-message" class="hidden mt-4 text-red-500 font-bold bg-red-50 px-4 py-2 rounded-lg border border-red-200">
+            Revisar tablero
+        </div>
+
+        <div id="numpad" class="mt-8 grid grid-cols-5 gap-2 w-full">
+            <button onclick="inputValue(1)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">1</button>
+            <button onclick="inputValue(2)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">2</button>
+            <button onclick="inputValue(3)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">3</button>
+            <button onclick="inputValue(4)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">4</button>
+            <button onclick="inputValue(5)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">5</button>
+            <button onclick="inputValue(6)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">6</button>
+            <button onclick="inputValue(7)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">7</button>
+            <button onclick="inputValue(8)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">8</button>
+            <button onclick="inputValue(9)" class="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold hover:bg-gray-100 active:bg-blue-100 transition-colors shadow-sm">9</button>
+            <button onclick="clearValue()" class="bg-red-50 border-2 border-red-100 py-4 rounded-xl text-lg font-bold text-red-500 hover:bg-red-100 active:bg-red-200 flex items-center justify-center shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Pantalla de Victoria -->
+    <div id="victory-screen" class="hidden flex flex-col items-center justify-center flex-grow w-full max-w-md fade-in">
+        <div class="bg-white p-10 rounded-3xl shadow-2xl border border-gray-100 flex flex-col items-center text-center">
+            <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">¡Felicidades!</h1>
+            <p class="text-gray-500 mb-8">Has completado el Sudoku correctamente.</p>
+            <button onclick="showHome()" class="w-full bg-blue-600 text-white py-4 rounded-2xl text-xl font-bold hover:bg-blue-700 transition-colors shadow-lg">
+                Partida Nueva
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const homeScreen = document.getElementById('home-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const victoryScreen = document.getElementById('victory-screen');
+        const gridElement = document.getElementById('grid');
+        const difficultyLabel = document.getElementById('difficulty-label');
+        const errorMessage = document.getElementById('error-message');
+        
+        let selectedCell = null;
+        let currentBoard = [];
+
+        function generateSudokuData(hintsCount) {
+            let board = [
+                [1,2,3,4,5,6,7,8,9],
+                [4,5,6,7,8,9,1,2,3],
+                [7,8,9,1,2,3,4,5,6],
+                [2,3,1,5,6,4,8,9,7],
+                [5,6,4,8,9,7,2,3,1],
+                [8,9,7,2,3,1,5,6,4],
+                [3,1,2,6,4,5,9,7,8],
+                [6,4,5,9,7,8,3,1,2],
+                [9,7,8,3,1,2,6,4,5]
+            ];
+
+            // Mezclar tablero
+            for(let i=0; i<20; i++) {
+                const block = Math.floor(Math.random() * 3) * 3;
+                const r1 = block + Math.floor(Math.random() * 3);
+                const r2 = block + Math.floor(Math.random() * 3);
+                [board[r1], board[r2]] = [board[r2], board[r1]];
+            }
+
+            let puzzle = board.map(row => [...row]);
+            let removed = 0;
+            let targetToRemove = 81 - hintsCount;
+
+            while (removed < targetToRemove) {
+                let r = Math.floor(Math.random() * 9);
+                let c = Math.floor(Math.random() * 9);
+                if (puzzle[r][c] !== 0) {
+                    puzzle[r][c] = 0;
+                    removed++;
+                }
+            }
+            return puzzle;
+        }
+
+        function startGame(hints) {
+            if(hints === 48) difficultyLabel.innerText = "Fácil";
+            else if(hints === 30) difficultyLabel.innerText = "Medio";
+            else difficultyLabel.innerText = "Difícil";
+
+            currentBoard = generateSudokuData(hints);
+            renderGrid();
+            
+            homeScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            victoryScreen.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+        }
+
+        function showHome() {
+            gameScreen.classList.add('hidden');
+            victoryScreen.classList.add('hidden');
+            homeScreen.classList.remove('hidden');
+            selectedCell = null;
+        }
+
+        function renderGrid() {
+            gridElement.innerHTML = '';
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    
+                    if (c % 3 === 2 && c < 8) cell.classList.add('border-r-bold');
+                    if (r % 3 === 2 && r < 8) cell.classList.add('border-b-bold');
+
+                    const value = currentBoard[r][c];
+                    if (value !== 0) {
+                        cell.innerText = value;
+                        cell.classList.add('initial');
+                    } else {
+                        cell.addEventListener('click', () => selectCell(cell));
+                    }
+
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    gridElement.appendChild(cell);
+                }
+            }
+        }
+
+        function selectCell(cell) {
+            errorMessage.classList.add('hidden');
+            if (selectedCell) selectedCell.classList.remove('selected');
+            selectedCell = cell;
+            selectedCell.classList.add('selected');
+        }
+
+        function inputValue(num) {
+            if (selectedCell) {
+                selectedCell.innerText = num;
+                selectedCell.classList.add('user-input');
+            }
+        }
+
+        function clearValue() {
+            if (selectedCell) {
+                selectedCell.innerText = '';
+                selectedCell.classList.remove('user-input');
+            }
+        }
+
+        // --- LÓGICA DE VALIDACIÓN ---
+
+        function validateBoard() {
+            const cells = Array.from(gridElement.children);
+            let boardValues = Array.from({ length: 9 }, () => Array(9).fill(0));
+            let isComplete = true;
+
+            // Recopilar valores y verificar si está completo
+            cells.forEach(cell => {
+                const r = parseInt(cell.dataset.row);
+                const c = parseInt(cell.dataset.col);
+                const val = parseInt(cell.innerText) || 0;
+                if (val === 0) isComplete = false;
+                boardValues[r][c] = val;
+            });
+
+            if (!isComplete || !isValidSudoku(boardValues)) {
+                errorMessage.classList.remove('hidden');
+                return;
+            }
+
+            // Mostrar victoria
+            gameScreen.classList.add('hidden');
+            victoryScreen.classList.remove('hidden');
+        }
+
+        function isValidSudoku(board) {
+            // Verificar filas, columnas y bloques 3x3
+            for (let i = 0; i < 9; i++) {
+                let rowSet = new Set();
+                let colSet = new Set();
+                let boxSet = new Set();
+
+                for (let j = 0; j < 9; j++) {
+                    // Fila
+                    if (board[i][j] !== 0) {
+                        if (rowSet.has(board[i][j])) return false;
+                        rowSet.add(board[i][j]);
+                    }
+
+                    // Columna
+                    if (board[j][i] !== 0) {
+                        if (colSet.has(board[j][i])) return false;
+                        colSet.add(board[j][i]);
+                    }
+
+                    // Caja 3x3
+                    let r = 3 * Math.floor(i / 3) + Math.floor(j / 3);
+                    let c = 3 * (i % 3) + (j % 3);
+                    if (board[r][c] !== 0) {
+                        if (boxSet.has(board[r][c])) return false;
+                        boxSet.add(board[r][c]);
+                    }
+                }
+            }
+            return true;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!selectedCell || gameScreen.classList.contains('hidden')) return;
+            if (e.key >= 1 && e.key <= 9) inputValue(e.key);
+            else if (e.key === 'Backspace' || e.key === 'Delete') clearValue();
+        });
+    </script>
+</body>
+</html>
